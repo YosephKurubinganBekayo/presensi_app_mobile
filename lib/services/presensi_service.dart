@@ -177,7 +177,7 @@ class PresensiService {
       int recognized = 0;
       List<int> siswaIds = [];
       final database = await getDatabaseWajah();
-
+      print("TOTAL DATABASE: ${database.length}");
       for (var face in faces) {
         final cropped = img.copyCrop(
           image,
@@ -188,12 +188,17 @@ class PresensiService {
         );
 
         final embedding = getEmbedding(cropped);
+        print("EMBEDDING FACE (first 5): ${embedding.take(5).toList()}");
+        print(
+          "DB EMBEDDING (first 5): ${database[0]['embedding'].take(5).toList()}",
+        );
 
         double bestScore = 0;
         int? bestId;
 
         for (var siswa in database) {
           double sim = cosineSimilarity(embedding, siswa["embedding"]);
+          print("COMPARE ID ${siswa["id"]} => $sim");
 
           if (sim > bestScore) {
             bestScore = sim;
