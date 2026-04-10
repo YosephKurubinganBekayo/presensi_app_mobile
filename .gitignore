@@ -1,0 +1,33 @@
+# =====================
+# FLUTTER
+# =====================
+.dart_tool/
+.packages
+.pub/
+build/
+
+# =====================
+# PYTHON
+# =====================
+venv/
+__pycache__/
+*.pyc
+.env
+statics/
+ai_service/venv/
+__pycache__/
+*.pyc
+# =====================
+# AI MODEL (WAJIB)
+# =====================
+*.pt
+*.onnx
+
+# =====================
+# OS & IDE
+# =====================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/venv/
+ai_service/venv/
