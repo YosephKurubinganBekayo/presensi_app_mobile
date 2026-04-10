@@ -164,7 +164,7 @@ class PresensiService {
   }) async {
     try {
       await initYolo();
-
+      await initFaceNet();
       final image = img.decodeImage(File(imagePath).readAsBytesSync());
 
       if (image == null) {
