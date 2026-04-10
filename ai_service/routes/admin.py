@@ -264,6 +264,22 @@ def get_embeddings(
         }
         for e in embeddings
     ]
+@router.get("/siswa/embeddings")
+def get_all_embeddings(
+    db: Session = Depends(get_db),
+    user=Depends(admin_required),
+):
+    data = db.query(FaceEmbedding).all()
+
+    result = []
+
+    for d in data:
+        result.append({
+            "id": d.siswa_id,
+            "embedding": json.loads(d.embedding)
+        })
+
+    return result
 @router.get("/kelas")
 def list_kelas(
     db: Session = Depends(get_db),
