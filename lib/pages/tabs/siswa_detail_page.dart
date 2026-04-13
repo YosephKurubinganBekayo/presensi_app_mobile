@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:dio/dio.dart';
-
+import '../../services/presensi_service.dart';
 class SiswaDetailPage extends StatefulWidget {
   final Map siswa;
 
@@ -77,75 +77,44 @@ class _SiswaDetailPageState extends State<SiswaDetailPage> {
 
     if (pickedFile == null) return;
 
-    final token = await AuthService.getToken();
-
     setState(() {
       isUploading = true;
       uploadProgress = 0;
     });
 
     try {
-      Dio dio = Dio();
-
-      final bytes = await pickedFile.readAsBytes();
-
-      FormData formData = FormData.fromMap({
-        "file": MultipartFile.fromBytes(bytes, filename: "face.jpg"),
-      });
-
-      Response response = await dio.post(
-        "${AuthService.baseUrl}/api/ai/upload/${widget.siswa["id"]}",
-        data: formData,
-        options: Options(
-          headers: {"Authorization": "Bearer $token"},
-          validateStatus: (status) => true, // 🔥 penting
-        ),
-        onSendProgress: (sent, total) {
-          setState(() {
-            uploadProgress = sent / total;
-          });
-        },
+      // 🔥 PROSES EMBEDDING + KIRIM KE SERVER
+      await PresensiService.registerFaceToServer(
+        imagePath: pickedFile.path,
+        siswaId: widget.siswa["id"],
       );
 
-      // 🔥 Delay kecil supaya progress terlihat 100%
-      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
 
       setState(() {
         isUploading = false;
-        uploadProgress = 0;
+        uploadProgress = 1;
+        hasEmbedding = true;
       });
 
-      if (response.statusCode == 200) {
-        setState(() {
-          hasEmbedding = true;
-        });
+      await loadFaces();
 
-        await loadFaces();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Embedding berhasil disimpan"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Gagal: ${response.data}"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Embedding berhasil disimpan"),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         isUploading = false;
         uploadProgress = 0;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Upload error: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     }
   }

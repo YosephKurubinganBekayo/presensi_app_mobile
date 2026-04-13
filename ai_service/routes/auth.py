@@ -67,7 +67,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         if user:
             role = "guru"
 
-    # ❌ Tidak ditemukan di kedua tabel
+    # Tidak ditemukan di kedua tabel
     if not user:
         raise HTTPException(status_code=401, detail="Email atau password salah")
 

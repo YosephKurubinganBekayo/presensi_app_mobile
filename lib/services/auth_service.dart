@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static String get baseUrl {
-    return "http://192.168.1.23:8000";
+    return "http://192.168.1.2:8000";
     // return "http://192.168.1.135:8000";
     // return "https://diagnosis-wiley-methods-edgar.trycloudflare.com";
   }

@@ -22,6 +22,40 @@ class PresensiService {
     _isModelLoaded = true;
   }
 
+  // =========================================================
+  // 🖼 DEBUG HELPER
+  // =========================================================
+  static Future<void> saveDebugImage(img.Image image, String name) async {
+    final dir = Directory('/storage/emulated/0/Download/debug_faces');
+
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+
+    final file = File('${dir.path}/$name.jpg');
+    file.writeAsBytesSync(img.encodeJpg(image));
+
+    print("DEBUG IMAGE SAVED: ${file.path}");
+  }
+
+  static img.Image drawBoxes(
+    img.Image image,
+    List<Map<String, dynamic>> boxes,
+  ) {
+    for (var box in boxes) {
+      img.drawRect(
+        image,
+        x1: box['x'].toInt(),
+        y1: box['y'].toInt(),
+        x2: (box['x'] + box['w']).toInt(),
+        y2: (box['y'] + box['h']).toInt(),
+        color: img.ColorRgb8(255, 0, 0),
+        thickness: 3,
+      );
+    }
+    return image;
+  }
+
   static late Interpreter facenet;
 
   static Future<void> initFaceNet() async {
@@ -139,7 +173,15 @@ class PresensiService {
 
     yolo.run(input, output);
 
-    return _processYolo(output[0], image.width, image.height);
+    final results = _processYolo(output[0], image.width, image.height);
+
+    // 🔥 DEBUG: bounding box
+    final debugImage = drawBoxes(image.clone(), results);
+    await saveDebugImage(debugImage, "2_detected");
+
+    // 🔥 DEBUG INPUT
+    await saveDebugImage(resized, "1_resized");
+    return results;
   }
 
   // =========================================================
@@ -178,6 +220,8 @@ class PresensiService {
       List<int> siswaIds = [];
       final database = await getDatabaseWajah();
       print("TOTAL DATABASE: ${database.length}");
+      int faceIndex = 0;
+
       for (var face in faces) {
         final cropped = img.copyCrop(
           image,
@@ -187,7 +231,12 @@ class PresensiService {
           height: face['h'].toInt(),
         );
 
+        // 🔥 DEBUG FACE
+        await saveDebugImage(cropped, "face_$faceIndex");
+        faceIndex++;
+
         final embedding = getEmbedding(cropped);
+
         print("EMBEDDING FACE (first 5): ${embedding.take(5).toList()}");
         print(
           "DB EMBEDDING (first 5): ${database[0]['embedding'].take(5).toList()}",
@@ -338,7 +387,7 @@ class PresensiService {
     for (int i = 0; i < detections[0].length; i++) {
       double conf = detections[4][i];
 
-      if (conf > 0.5) {
+      if (conf > 0.3) {
         // 🔥 turunkan threshold (biar Soft-NMS kerja)
         double x = detections[0][i];
         double y = detections[1][i];
@@ -365,5 +414,64 @@ class PresensiService {
       sigma: 0.5,
       scoreThreshold: 0.4,
     );
+  }
+
+  // upload wajah ke server
+  static Future<void> registerFaceToServer({
+    required String imagePath,
+    required int siswaId,
+  }) async {
+    await initYolo();
+    await initFaceNet();
+
+    final image = img.decodeImage(File(imagePath).readAsBytesSync());
+
+    if (image == null) throw Exception("Gagal baca gambar");
+
+    final faces = await detectFacesLocal(imagePath);
+
+    if (faces.isEmpty) throw Exception("Tidak ada wajah");
+
+    final face = faces.first;
+
+    // 🔥 VALIDASI & CLAMP (ANTI ERROR)
+    double x = face['x'];
+    double y = face['y'];
+    double w = face['w'];
+    double h = face['h'];
+
+    if (w < 10 || h < 10) {
+      throw Exception("Wajah terlalu kecil");
+    }
+
+    x = max(0, x);
+    y = max(0, y);
+    w = min(w, image.width - x);
+    h = min(h, image.height - y);
+
+    final cropped = img.copyCrop(
+      image,
+      x: x.toInt(),
+      y: y.toInt(),
+      width: w.toInt(),
+      height: h.toInt(),
+    );
+
+    // 🔥 DEBUG (biar bisa dicek hasil crop)
+    await saveDebugImage(cropped, "register_face");
+
+    final embedding = getEmbedding(cropped);
+
+    print("EMBEDDING (first 5): ${embedding.take(5).toList()}");
+
+    // 🔥 KIRIM KE SERVER
+    final response = await AuthService.postWithAuth("/api/ai/save-embedding", {
+      "siswa_id": siswaId,
+      "embedding": embedding,
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception("Gagal simpan embedding");
+    }
   }
 }
