@@ -7,7 +7,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'auth_service.dart';
 
 class PresensiService {
-  static const String baseUrl = "http://192.168.1.23:8000";
+  static const String baseUrl = "http://192.168.1.2:8000";
 
   // =========================================================
   // 🔥 YOLO MODEL
